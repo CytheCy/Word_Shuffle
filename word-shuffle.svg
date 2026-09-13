@@ -1,8 +1,214 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#20242b"/>
-  <rect x="7" y="9" width="22" height="18" rx="5" fill="#6c9cf5"/>
-  <rect x="35" y="9" width="22" height="18" rx="5" fill="#303640" stroke="#515967"/>
-  <rect x="7" y="36" width="28" height="18" rx="5" fill="#303640" stroke="#515967"/>
-  <rect x="41" y="36" width="16" height="18" rx="5" fill="#303640" stroke="#515967"/>
-  <path d="M18 18h1m26 0h2M18 45h6m24 0h1" stroke="#f4f6fa" stroke-width="3" stroke-linecap="round"/>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 64 64"
+   version="1.1"
+   id="svg16"
+   sodipodi:docname="word-shuffle.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs16">
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath16">
+      <path
+         id="path16"
+         style="fill:#1f242c"
+         d="m 14,0 h 36 c 7.756,0 14,6.244 14,14 v 36 c 0,7.756 -6.244,14 -14,14 H 14 C 6.244,64 0,57.756 0,50 V 14 C 0,6.244 6.244,0 14,0 Z" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath17">
+      <path
+         id="path17"
+         style="fill:#1f242c"
+         d="m 14,0 h 36 c 7.756,0 14,6.244 14,14 v 36 c 0,7.756 -6.244,14 -14,14 H 14 C 6.244,64 0,57.756 0,50 V 14 C 0,6.244 6.244,0 14,0 Z" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath18">
+      <path
+         id="path18"
+         style="fill:#1f242c"
+         d="m 14,0 h 36 c 7.756,0 14,6.244 14,14 v 36 c 0,7.756 -6.244,14 -14,14 H 14 C 6.244,64 0,57.756 0,50 V 14 C 0,6.244 6.244,0 14,0 Z" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath19">
+      <path
+         id="path19"
+         style="fill:#1f242c"
+         d="m 14,0 h 36 c 7.756,0 14,6.244 14,14 v 36 c 0,7.756 -6.244,14 -14,14 H 14 C 6.244,64 0,57.756 0,50 V 14 C 0,6.244 6.244,0 14,0 Z" />
+    </clipPath>
+  </defs>
+  <sodipodi:namedview
+     id="namedview16"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="13.046875"
+     inkscape:cx="31.923353"
+     inkscape:cy="32"
+     inkscape:window-width="1920"
+     inkscape:window-height="1006"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg16" />
+  <rect
+     width="64"
+     height="64"
+     rx="14"
+     fill="#1f242c"
+     id="rect1" />
+  <g
+     fill="#2b313b"
+     stroke="#46505e"
+     stroke-width="0.8"
+     id="g9">
+    <rect
+       x="-7"
+       y="6"
+       width="29"
+       height="11"
+       rx="3"
+       id="rect2"
+       clip-path="url(#clipPath19)" />
+    <rect
+       x="25"
+       y="6"
+       width="32"
+       height="11"
+       rx="3"
+       id="rect3" />
+    <rect
+       x="5"
+       y="19"
+       width="26"
+       height="11"
+       rx="3"
+       id="rect4" />
+    <rect
+       x="34"
+       y="19"
+       width="35"
+       height="11"
+       rx="3"
+       id="rect5"
+       clip-path="url(#clipPath18)" />
+    <rect
+       x="-5"
+       y="32"
+       width="31"
+       height="11"
+       rx="3"
+       id="rect6"
+       clip-path="url(#clipPath17)" />
+    <rect
+       x="29"
+       y="32"
+       width="28"
+       height="11"
+       rx="3"
+       id="rect7" />
+    <rect
+       x="3"
+       y="45"
+       width="34"
+       height="11"
+       rx="3"
+       id="rect8" />
+    <rect
+       x="40"
+       y="45"
+       width="30"
+       height="11"
+       rx="3"
+       id="rect9"
+       clip-path="url(#clipPath16)" />
+  </g>
+  <g
+     fill="#f2f5fa"
+     font-family="DejaVu Sans, sans-serif"
+     font-size="5.2"
+     text-anchor="middle"
+     id="g16" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke-width:27.613;stroke-dasharray:none"
+     id="rect19"
+     width="10.960479"
+     height="4.7520957"
+     x="2.8359282"
+     y="9.5041914"
+     ry="2.0694611" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke-width:27.6132"
+     id="rect20"
+     width="0.15329342"
+     height="0.38323355"
+     x="10.117365"
+     y="12.723353" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke-width:34.7136;stroke-dasharray:none"
+     id="rect21"
+     width="17.322155"
+     height="4.7520957"
+     x="32.83593"
+     y="9.5041914"
+     ry="2.0694611" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke-width:34.7136;stroke-dasharray:none"
+     id="rect22"
+     width="17.322155"
+     height="4.7520957"
+     x="42.493416"
+     y="21.964073"
+     ry="2.0694611" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke-width:32.5741;stroke-dasharray:none"
+     id="rect23"
+     width="15.252694"
+     height="4.7520957"
+     x="10.562877"
+     y="21.964073"
+     ry="2.0694611" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke-width:34.1718;stroke-dasharray:none"
+     id="rect24"
+     width="16.785627"
+     height="4.7520957"
+     x="2.5149724"
+     y="35.147308"
+     ry="2.0694611" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke-width:33.5419;stroke-dasharray:none"
+     id="rect25"
+     width="16.172453"
+     height="4.7520957"
+     x="35.128147"
+     y="35.147308"
+     ry="2.0694611" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke-width:33.5419;stroke-dasharray:none"
+     id="rect26"
+     width="16.172453"
+     height="4.7520957"
+     x="46.24192"
+     y="47.870663"
+     ry="2.0694611" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke-width:37.6606;stroke-dasharray:none"
+     id="rect27"
+     width="20.388021"
+     height="4.7520957"
+     x="10.026352"
+     y="47.870663"
+     ry="2.0694611" />
 </svg>

@@ -86,6 +86,49 @@ class WordShuffleTests(unittest.TestCase):
                 self.assertEqual(index.data(Qt.DisplayRole), window.word_model.words[row].text)
             window.close()
 
+    def test_block_font_size_and_spacing_update_layout_and_are_saved(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "words.shfl"
+            source.write_text("one block\na phrase with several words\n", encoding="utf-8")
+            window = WordShuffleWindow(auto_load=False)
+            window.load_file(str(source))
+            old_height = window.word_model.index(0).data(Qt.SizeHintRole).height()
+
+            with patch.object(window.settings, "setValue") as save_setting:
+                window._set_block_display_preferences(28, 17)
+
+            self.assertEqual(window.word_list.font().pixelSize(), 28)
+            self.assertEqual(window.word_list.spacing(), 17)
+            self.assertGreater(
+                window.word_model.index(0).data(Qt.SizeHintRole).height(), old_height
+            )
+            self.assertIn(
+                unittest.mock.call("blockFontSize", 28), save_setting.call_args_list
+            )
+            self.assertIn(
+                unittest.mock.call("blockSpacing", 17), save_setting.call_args_list
+            )
+            window.close()
+
+    def test_dark_and_light_themes_apply_and_are_saved(self):
+        window = WordShuffleWindow(auto_load=False)
+
+        with patch.object(window.settings, "setValue") as save_setting:
+            window._set_theme("light")
+            light_stylesheet = window.styleSheet()
+            window._set_theme("dark")
+            dark_stylesheet = window.styleSheet()
+
+        self.assertIn("background: #f4f6f8", light_stylesheet)
+        self.assertIn("background: #1b1e24", dark_stylesheet)
+        self.assertNotEqual(light_stylesheet, dark_stylesheet)
+        self.assertIn(unittest.mock.call("theme", "light"), save_setting.call_args_list)
+        self.assertIn(unittest.mock.call("theme", "dark"), save_setting.call_args_list)
+        window.close()
+
     def test_external_edit_is_detected(self):
         import tempfile
         from pathlib import Path
@@ -140,7 +183,62 @@ class WordShuffleTests(unittest.TestCase):
             self.assertGreaterEqual(window.file_selector.findText("new.shfl"), 0)
 
             root = window.centralWidget().layout()
-            self.assertEqual(root.itemAt(root.count() - 1).widget().objectName(), "toolbar")
+            toolbar = root.itemAt(root.count() - 1).widget()
+            self.assertEqual(toolbar.objectName(), "toolbar")
+            self.assertIs(toolbar.layout().itemAt(0).widget(), window.settings_button)
+            self.assertEqual(window.settings_button.text(), "⚙")
+            self.assertEqual(window.settings_button.accessibleName(), "Settings")
+            window.close()
+
+    def test_external_file_does_not_replace_last_file_from_shuffle_folder(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shuffle_folder = root / "sets"
+            shuffle_folder.mkdir()
+            saved_file = shuffle_folder / "saved.shfl"
+            external_file = root / "external.shfl"
+            saved_file.write_text("saved\n", encoding="utf-8")
+            external_file.write_text("external\n", encoding="utf-8")
+
+            window = WordShuffleWindow(auto_load=False)
+            window.shuffle_folder = shuffle_folder.resolve()
+            with patch.object(window.settings, "setValue") as save_setting:
+                window.load_file(str(saved_file))
+                window.load_file(str(external_file))
+
+            self.assertEqual(
+                [
+                    call
+                    for call in save_setting.call_args_list
+                    if call.args and call.args[0] == "lastFile"
+                ],
+                [unittest.mock.call("lastFile", str(saved_file.resolve()))],
+            )
+            self.assertEqual(window.shuffle_folder, shuffle_folder.resolve())
+            window.close()
+
+    def test_normal_startup_ignores_external_last_file(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shuffle_folder = root / "sets"
+            shuffle_folder.mkdir()
+            folder_file = shuffle_folder / "folder-file.shfl"
+            external_file = root / "external.shfl"
+            folder_file.write_text("folder\n", encoding="utf-8")
+            external_file.write_text("external\n", encoding="utf-8")
+
+            window = WordShuffleWindow(auto_load=False)
+            window.shuffle_folder = shuffle_folder.resolve()
+            with patch.object(window.settings, "value", return_value=str(external_file)):
+                startup_file = window._startup_file(None)
+
+            self.assertEqual(startup_file, folder_file.resolve())
             window.close()
 
 

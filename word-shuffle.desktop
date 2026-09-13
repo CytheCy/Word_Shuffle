@@ -6,5 +6,5 @@ Exec=/home/cport/Git/Word_Shuffle/run-word-shuffle.sh %f
 Icon=/home/cport/Git/Word_Shuffle/word-shuffle.svg
 Terminal=false
 Categories=Utility;
-MimeType=text/plain;
+MimeType=application/x-word-shuffle;
 StartupNotify=true

@@ -24,15 +24,20 @@ from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
+    QFormLayout,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QListView,
     QMainWindow,
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSpinBox,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -40,8 +45,10 @@ from PySide6.QtWidgets import (
 
 
 APP_NAME = "Word Shuffle"
-ACCENT = "#6c9cf5"
 DEFAULT_SAMPLE = Path("/home/cport/MEGA/Notes/Word Shuffle/try.shfl")
+DEFAULT_BLOCK_FONT_SIZE = 14
+DEFAULT_BLOCK_SPACING = 5
+DEFAULT_THEME = "dark"
 
 
 @dataclass(frozen=True)
@@ -73,8 +80,9 @@ class WordListModel(QAbstractListModel):
         if role == Qt.SizeHintRole and self.font_metrics is not None:
             natural_width = self.font_metrics.horizontalAdvance(word.text) + 34
             width = min(natural_width, self.maximum_item_width)
+            minimum_height = max(40, self.font_metrics.height() + 18)
             if natural_width <= self.maximum_item_width:
-                return QSize(width, 40)
+                return QSize(width, minimum_height)
             text_width = max(1, width - 34)
             bounds = self.font_metrics.boundingRect(
                 0,
@@ -84,7 +92,7 @@ class WordListModel(QAbstractListModel):
                 Qt.AlignCenter | Qt.TextWordWrap | Qt.TextWrapAnywhere,
                 word.text,
             )
-            return QSize(width, max(40, bounds.height() + 18))
+            return QSize(width, max(minimum_height, bounds.height() + 18))
         return None
 
     def set_words(self, words: list[WordLine], font_metrics) -> None:
@@ -153,18 +161,98 @@ class FileSelector(QComboBox):
         super().showPopup()
 
 
+class SettingsDialog(QDialog):
+    def __init__(
+        self,
+        parent: QWidget,
+        shuffle_folder: Path | None,
+        block_font_size: int,
+        block_spacing: int,
+        theme: str,
+    ):
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        self.setModal(True)
+        self.setMinimumWidth(500)
+
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        form.setHorizontalSpacing(14)
+        form.setVerticalSpacing(12)
+
+        folder_row = QWidget()
+        folder_layout = QHBoxLayout(folder_row)
+        folder_layout.setContentsMargins(0, 0, 0, 0)
+        folder_layout.setSpacing(8)
+        self.folder_edit = QLineEdit(str(shuffle_folder) if shuffle_folder else "")
+        self.folder_edit.setReadOnly(True)
+        self.folder_edit.setPlaceholderText("No shuffle folder selected")
+        folder_layout.addWidget(self.folder_edit, 1)
+        browse_button = QPushButton("Choose…")
+        browse_button.clicked.connect(self._choose_folder)
+        folder_layout.addWidget(browse_button)
+        form.addRow("Shuffle folder", folder_row)
+
+        self.font_size_input = QSpinBox()
+        self.font_size_input.setRange(9, 36)
+        self.font_size_input.setSuffix(" px")
+        self.font_size_input.setValue(block_font_size)
+        form.addRow("Block font size", self.font_size_input)
+
+        self.spacing_input = QSpinBox()
+        self.spacing_input.setRange(0, 40)
+        self.spacing_input.setSuffix(" px")
+        self.spacing_input.setValue(block_spacing)
+        form.addRow("Space between blocks", self.spacing_input)
+
+        self.theme_input = QComboBox()
+        self.theme_input.addItem("Dark", "dark")
+        self.theme_input.addItem("Light", "light")
+        self.theme_input.setCurrentIndex(max(0, self.theme_input.findData(theme)))
+        form.addRow("Appearance", self.theme_input)
+        layout.addLayout(form)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    @property
+    def shuffle_folder(self) -> Path | None:
+        value = self.folder_edit.text().strip()
+        return Path(value).expanduser().resolve() if value else None
+
+    def _choose_folder(self) -> None:
+        current = self.shuffle_folder
+        start = str(current or DEFAULT_SAMPLE.parent)
+        path = QFileDialog.getExistingDirectory(self, "Choose shuffle folder", start)
+        if path:
+            self.folder_edit.setText(str(Path(path).expanduser().resolve()))
+
+
 class WordShuffleWindow(QMainWindow):
     def __init__(self, initial_file: str | None = None, auto_load: bool = True):
         super().__init__()
         self.settings = QSettings("Local Tools", APP_NAME)
         self.file_path: Path | None = None
         saved_folder = self.settings.value("shuffleFolder", "", str)
-        self.shuffle_folder = Path(saved_folder).expanduser() if saved_folder else None
+        self.shuffle_folder = Path(saved_folder).expanduser().resolve() if saved_folder else None
         if self.shuffle_folder and not self.shuffle_folder.is_dir():
             self.shuffle_folder = None
+        self.block_font_size = max(
+            9,
+            min(36, self.settings.value("blockFontSize", DEFAULT_BLOCK_FONT_SIZE, int)),
+        )
+        self.block_spacing = max(
+            0,
+            min(40, self.settings.value("blockSpacing", DEFAULT_BLOCK_SPACING, int)),
+        )
+        saved_theme = self.settings.value("theme", DEFAULT_THEME, str).lower()
+        self.theme = saved_theme if saved_theme in {"dark", "light"} else DEFAULT_THEME
         self.words: list[WordLine] = []
         self.display_order: list[WordLine] = []
         self._build_ui()
+        self._apply_theme()
         self._refresh_file_selector()
         self._install_shortcuts()
 
@@ -175,11 +263,9 @@ class WordShuffleWindow(QMainWindow):
             self.resize(980, 650)
 
         if auto_load:
-            candidate = initial_file or self.settings.value("lastFile", "", str)
-            if not candidate and DEFAULT_SAMPLE.is_file():
-                candidate = str(DEFAULT_SAMPLE)
-            if candidate and Path(candidate).is_file():
-                QTimer.singleShot(0, lambda: self.load_file(candidate))
+            candidate = self._startup_file(initial_file)
+            if candidate:
+                QTimer.singleShot(0, lambda: self.load_file(str(candidate)))
             else:
                 self._show_empty_state()
         else:
@@ -226,7 +312,7 @@ class WordShuffleWindow(QMainWindow):
         self.word_list.setMovement(QListView.Static)
         self.word_list.setLayoutMode(QListView.Batched)
         self.word_list.setBatchSize(250)
-        self.word_list.setSpacing(5)
+        self._apply_block_display()
         self.word_list.setSelectionMode(QListView.NoSelection)
         self.word_list.setCursor(Qt.PointingHandCursor)
         self.word_list.setToolTip("Ctrl-click a block to remove and copy it")
@@ -256,10 +342,6 @@ class WordShuffleWindow(QMainWindow):
         helper = QLabel("CTRL + CLICK  removes a block from the file and copies it")
         helper.setObjectName("helper")
         helper_row.addWidget(helper)
-        helper_row.addStretch()
-        self.status_label = QLabel("READY")
-        self.status_label.setObjectName("status")
-        helper_row.addWidget(self.status_label)
         content_layout.addLayout(helper_row)
         root.addWidget(content, 1)
 
@@ -268,6 +350,15 @@ class WordShuffleWindow(QMainWindow):
         toolbar_layout = QHBoxLayout(toolbar)
         toolbar_layout.setContentsMargins(18, 12, 18, 12)
         toolbar_layout.setSpacing(9)
+
+        self.settings_button = QToolButton()
+        self.settings_button.setObjectName("settingsButton")
+        self.settings_button.setText("⚙")
+        self.settings_button.setAccessibleName("Settings")
+        self.settings_button.setToolTip("Settings")
+        self.settings_button.setFixedSize(34, 34)
+        self.settings_button.clicked.connect(self.show_settings)
+        toolbar_layout.addWidget(self.settings_button)
 
         toolbar_layout.addStretch()
 
@@ -285,11 +376,6 @@ class WordShuffleWindow(QMainWindow):
         self.shuffle_button.setEnabled(False)
         toolbar_layout.addWidget(self.shuffle_button)
 
-        self.settings_button = QToolButton()
-        self.settings_button.setText("Settings")
-        self.settings_button.setToolTip("Choose the folder containing .shfl files")
-        self.settings_button.clicked.connect(self.choose_shuffle_folder)
-        toolbar_layout.addWidget(self.settings_button)
         root.addWidget(toolbar)
 
     def _install_shortcuts(self) -> None:
@@ -320,31 +406,113 @@ class WordShuffleWindow(QMainWindow):
         self.shuffle_folder = Path(path).expanduser().resolve()
         self.settings.setValue("shuffleFolder", str(self.shuffle_folder))
         self._refresh_file_selector()
-        self._set_status("SHUFFLE FOLDER UPDATED")
+
+    def show_settings(self) -> None:
+        dialog = SettingsDialog(
+            self,
+            self.shuffle_folder,
+            self.block_font_size,
+            self.block_spacing,
+            self.theme,
+        )
+        if dialog.exec() != QDialog.Accepted:
+            return
+
+        folder_changed = dialog.shuffle_folder != self.shuffle_folder
+        self.shuffle_folder = dialog.shuffle_folder
+        if self.shuffle_folder:
+            self.settings.setValue("shuffleFolder", str(self.shuffle_folder))
+        else:
+            self.settings.remove("shuffleFolder")
+        self._set_block_display_preferences(
+            dialog.font_size_input.value(),
+            dialog.spacing_input.value(),
+        )
+        self._set_theme(dialog.theme_input.currentData())
+        if folder_changed:
+            self._refresh_file_selector()
+
+    def _set_block_display_preferences(self, font_size: int, spacing: int) -> None:
+        self.block_font_size = max(9, min(36, font_size))
+        self.block_spacing = max(0, min(40, spacing))
+        self.settings.setValue("blockFontSize", self.block_font_size)
+        self.settings.setValue("blockSpacing", self.block_spacing)
+        self._apply_block_display()
+        if self.display_order:
+            self._render_words()
+
+    def _apply_block_display(self) -> None:
+        font = self.word_list.font()
+        font.setPixelSize(self.block_font_size)
+        self.word_list.setFont(font)
+        self.word_list.setSpacing(self.block_spacing)
+
+    def _set_theme(self, theme: str) -> None:
+        self.theme = theme if theme in {"dark", "light"} else DEFAULT_THEME
+        self.settings.setValue("theme", self.theme)
+        self._apply_theme()
+
+    def _apply_theme(self) -> None:
+        self.setStyleSheet(stylesheet_for_theme(self.theme))
+        # Apply this after the stylesheet so the adjustable block font wins.
+        self._apply_block_display()
 
     def _refresh_file_selector(self) -> None:
         selected_path = str(self.file_path) if self.file_path else ""
         blocker = QSignalBlocker(self.file_selector)
         self.file_selector.clear()
-        if self.shuffle_folder and self.shuffle_folder.is_dir():
-            try:
-                files = sorted(
-                    (
-                        path
-                        for path in self.shuffle_folder.rglob("*")
-                        if path.is_file() and path.suffix.lower() == ".shfl"
-                    ),
-                    key=lambda path: str(path.relative_to(self.shuffle_folder)).casefold(),
-                )
-            except OSError:
-                files = []
-            for path in files:
-                relative_name = str(path.relative_to(self.shuffle_folder))
-                self.file_selector.addItem(relative_name, str(path.resolve()))
+        for path in self._files_in_shuffle_folder():
+            relative_name = str(path.relative_to(self.shuffle_folder))
+            self.file_selector.addItem(relative_name, str(path))
         matching_index = self.file_selector.findData(selected_path)
         self.file_selector.setCurrentIndex(matching_index)
         self.file_selector.setEnabled(self.file_selector.count() > 0)
         del blocker
+
+    def _files_in_shuffle_folder(self) -> list[Path]:
+        if not self.shuffle_folder or not self.shuffle_folder.is_dir():
+            return []
+        try:
+            folder = self.shuffle_folder.resolve()
+            return sorted(
+                (
+                    path.resolve()
+                    for path in self.shuffle_folder.rglob("*")
+                    if path.is_file()
+                    and path.suffix.lower() == ".shfl"
+                    and self._is_in_shuffle_folder(path.resolve())
+                ),
+                key=lambda path: str(path.relative_to(folder)).casefold(),
+            )
+        except (OSError, ValueError):
+            return []
+
+    def _is_in_shuffle_folder(self, path: Path) -> bool:
+        if not self.shuffle_folder:
+            return False
+        try:
+            path.relative_to(self.shuffle_folder.resolve())
+            return True
+        except ValueError:
+            return False
+
+    def _startup_file(self, initial_file: str | None) -> Path | None:
+        if initial_file:
+            candidate = Path(initial_file).expanduser().resolve()
+            return candidate if candidate.is_file() else None
+
+        saved_file = self.settings.value("lastFile", "", str)
+        if saved_file:
+            candidate = Path(saved_file).expanduser().resolve()
+            if candidate.is_file() and self._is_in_shuffle_folder(candidate):
+                return candidate
+
+        folder_files = self._files_in_shuffle_folder()
+        if folder_files:
+            return folder_files[0]
+        if not self.shuffle_folder and DEFAULT_SAMPLE.is_file():
+            return DEFAULT_SAMPLE.resolve()
+        return None
 
     def _open_selected_file(self, index: int) -> None:
         path = self.file_selector.itemData(index)
@@ -363,7 +531,8 @@ class WordShuffleWindow(QMainWindow):
         self.words = [WordLine(i, line) for i, line in enumerate(lines) if line.strip()]
         self.display_order = self.words.copy()
         random.shuffle(self.display_order)
-        self.settings.setValue("lastFile", str(candidate))
+        if self._is_in_shuffle_folder(candidate):
+            self.settings.setValue("lastFile", str(candidate))
         self.setWindowTitle(f"{candidate.name} — {APP_NAME}")
         self.shuffle_button.setEnabled(bool(self.words))
         matching_index = self.file_selector.findData(str(candidate))
@@ -372,7 +541,6 @@ class WordShuffleWindow(QMainWindow):
             self.file_selector.setCurrentIndex(matching_index)
             del blocker
         self._render_words()
-        self._set_status(f"LOADED {len(self.words)} BLOCKS")
 
     def shuffle_words(self) -> None:
         if len(self.display_order) > 1:
@@ -382,7 +550,6 @@ class WordShuffleWindow(QMainWindow):
                 if self.display_order != previous:
                     break
             self._render_words()
-            self._set_status("SHUFFLED")
 
     def _render_words(self) -> None:
         self.word_model.set_words(self.display_order, self.word_list.fontMetrics())
@@ -436,15 +603,9 @@ class WordShuffleWindow(QMainWindow):
                 self.display_order.append(updated)
         self._render_words()
         self.shuffle_button.setEnabled(bool(self.words))
-        preview = selected.text if len(selected.text) <= 34 else selected.text[:31] + "…"
-        self._set_status(f'COPIED “{preview}”')
 
     def _show_empty_state(self) -> None:
         self.empty_widget.setVisible(True)
-
-    def _set_status(self, message: str) -> None:
-        self.status_label.setText(message)
-        QTimer.singleShot(3500, lambda: self.status_label.setText("READY"))
 
     def dragEnterEvent(self, event) -> None:  # type: ignore[override]
         if event.mimeData().hasUrls():
@@ -462,71 +623,149 @@ class WordShuffleWindow(QMainWindow):
         super().closeEvent(event)
 
 
-STYLESHEET = f"""
+THEMES = {
+    "dark": {
+        "accent": "#6c9cf5",
+        "window": "#1b1e24",
+        "text": "#d7dbe2",
+        "toolbar": "#20242b",
+        "toolbar_border": "#343942",
+        "section": "#eef1f6",
+        "muted": "#7f8793",
+        "empty": "#c3c8d0",
+        "control": "#292e36",
+        "control_text": "#d9dde4",
+        "control_border": "#3a414b",
+        "control_hover": "#323842",
+        "control_hover_border": "#505965",
+        "control_pressed": "#252a31",
+        "disabled_text": "#656b74",
+        "disabled": "#23272d",
+        "disabled_border": "#30353d",
+        "selection_text": "#10141a",
+        "panel": "#181b20",
+        "panel_border": "#303640",
+        "scroll_handle": "#3b424d",
+        "block": "#262b33",
+        "block_text": "#e4e7ec",
+        "block_border": "#3b424d",
+        "block_hover": "#2c3440",
+        "block_hover_text": "#ffffff",
+        "tooltip": "#303641",
+        "tooltip_text": "#f0f2f5",
+        "tooltip_border": "#4a5260",
+    },
+    "light": {
+        "accent": "#3268c8",
+        "window": "#f4f6f8",
+        "text": "#27313f",
+        "toolbar": "#e9edf2",
+        "toolbar_border": "#cdd5df",
+        "section": "#1d2733",
+        "muted": "#687383",
+        "empty": "#4a5565",
+        "control": "#ffffff",
+        "control_text": "#253140",
+        "control_border": "#c4ccd7",
+        "control_hover": "#f1f4f8",
+        "control_hover_border": "#929fb0",
+        "control_pressed": "#e5eaf0",
+        "disabled_text": "#98a2af",
+        "disabled": "#edf0f3",
+        "disabled_border": "#d8dde4",
+        "selection_text": "#ffffff",
+        "panel": "#ffffff",
+        "panel_border": "#d3d9e2",
+        "scroll_handle": "#b5bfcc",
+        "block": "#f5f7fa",
+        "block_text": "#253140",
+        "block_border": "#cbd3dd",
+        "block_hover": "#e7effb",
+        "block_hover_text": "#17243a",
+        "tooltip": "#27313f",
+        "tooltip_text": "#ffffff",
+        "tooltip_border": "#526171",
+    },
+}
+
+
+def stylesheet_for_theme(theme: str) -> str:
+    colors = THEMES.get(theme, THEMES[DEFAULT_THEME])
+    return f"""
 QWidget {{
-    background: #1b1e24;
-    color: #d7dbe2;
+    background: {colors["window"]};
+    color: {colors["text"]};
     font-family: "Noto Sans", "Inter", sans-serif;
-    font-size: 13px;
 }}
 QFrame#toolbar {{
-    background: #20242b;
-    border-top: 1px solid #343942;
+    background: {colors["toolbar"]};
+    border-top: 1px solid {colors["toolbar_border"]};
 }}
 QLabel#sectionLabel {{
-    color: #eef1f6;
+    color: {colors["section"]};
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 1px;
 }}
-QLabel#helper {{ color: #7f8793; font-size: 11px; }}
-QLabel#status {{ color: {ACCENT}; font-size: 10px; font-weight: 700; }}
-QLabel#emptyTitle {{ color: #c3c8d0; font-size: 15px; font-weight: 600; }}
+QLabel#helper {{ color: {colors["muted"]}; font-size: 11px; }}
+QLabel#emptyTitle {{ color: {colors["empty"]}; font-size: 15px; font-weight: 600; }}
 QPushButton, QToolButton {{
     min-height: 32px;
     padding: 0 13px;
-    background: #292e36;
-    color: #d9dde4;
-    border: 1px solid #3a414b;
+    background: {colors["control"]};
+    color: {colors["control_text"]};
+    border: 1px solid {colors["control_border"]};
     border-radius: 8px;
 }}
-QPushButton:hover, QToolButton:hover {{ background: #323842; border-color: #505965; }}
-QPushButton:pressed, QToolButton:pressed {{ background: #252a31; }}
-QPushButton:disabled, QToolButton:disabled {{ color: #656b74; background: #23272d; border-color: #30353d; }}
+QToolButton#settingsButton {{
+    min-height: 0;
+    padding: 0;
+    font-size: 26px;
+}}
+QPushButton:hover, QToolButton:hover {{ background: {colors["control_hover"]}; border-color: {colors["control_hover_border"]}; }}
+QPushButton:pressed, QToolButton:pressed {{ background: {colors["control_pressed"]}; }}
+QPushButton:disabled, QToolButton:disabled {{ color: {colors["disabled_text"]}; background: {colors["disabled"]}; border-color: {colors["disabled_border"]}; }}
+QLineEdit, QSpinBox, QComboBox {{
+    min-height: 30px;
+    padding: 0 8px;
+    background: {colors["control"]};
+    color: {colors["control_text"]};
+    border: 1px solid {colors["control_border"]};
+    border-radius: 6px;
+}}
 QComboBox#fileSelector {{
     min-height: 32px;
     padding: 0 10px;
-    background: #292e36;
-    color: #d9dde4;
-    border: 1px solid #3a414b;
+    background: {colors["control"]};
+    color: {colors["control_text"]};
+    border: 1px solid {colors["control_border"]};
     border-radius: 8px;
 }}
-QComboBox#fileSelector:hover {{ background: #323842; border-color: #505965; }}
-QComboBox#fileSelector:disabled {{ color: #656b74; background: #23272d; border-color: #30353d; }}
-QComboBox#fileSelector QAbstractItemView {{
-    background: #292e36;
-    color: #d9dde4;
-    border: 1px solid #505965;
-    selection-background-color: {ACCENT};
-    selection-color: #10141a;
+QComboBox:hover {{ background: {colors["control_hover"]}; border-color: {colors["control_hover_border"]}; }}
+QComboBox:disabled {{ color: {colors["disabled_text"]}; background: {colors["disabled"]}; border-color: {colors["disabled_border"]}; }}
+QComboBox QAbstractItemView {{
+    background: {colors["control"]};
+    color: {colors["control_text"]};
+    border: 1px solid {colors["control_hover_border"]};
+    selection-background-color: {colors["accent"]};
+    selection-color: {colors["selection_text"]};
 }}
-QFrame#dropPanel {{ background: #181b20; border: 1px solid #303640; border-radius: 10px; }}
+QFrame#dropPanel {{ background: {colors["panel"]}; border: 1px solid {colors["panel_border"]}; border-radius: 10px; }}
 QScrollArea#workspaceScroll {{ background: transparent; border: none; }}
-QScrollBar:vertical {{ background: #181b20; width: 10px; margin: 8px 2px; }}
-QScrollBar::handle:vertical {{ background: #3b424d; min-height: 28px; border-radius: 4px; }}
+QScrollBar:vertical {{ background: {colors["panel"]}; width: 10px; margin: 8px 2px; }}
+QScrollBar::handle:vertical {{ background: {colors["scroll_handle"]}; min-height: 28px; border-radius: 4px; }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QListView#wordList::item {{
     min-height: 38px;
     padding: 0 16px;
-    background: #262b33;
-    color: #e4e7ec;
-    border: 1px solid #3b424d;
+    background: {colors["block"]};
+    color: {colors["block_text"]};
+    border: 1px solid {colors["block_border"]};
     border-radius: 8px;
-    font-size: 14px;
 }}
-QListView#wordList::item:hover {{ background: #2c3440; color: #ffffff; border-color: {ACCENT}; }}
+QListView#wordList::item:hover {{ background: {colors["block_hover"]}; color: {colors["block_hover_text"]}; border-color: {colors["accent"]}; }}
 QListView#wordList {{ background: transparent; border: none; outline: none; }}
-QToolTip {{ background: #303641; color: #f0f2f5; border: 1px solid #4a5260; padding: 5px; }}
+QToolTip {{ background: {colors["tooltip"]}; color: {colors["tooltip_text"]}; border: 1px solid {colors["tooltip_border"]}; padding: 5px; }}
 """
 
 
@@ -536,7 +775,9 @@ def main() -> int:
     app.setOrganizationName("Local Tools")
     app.setWindowIcon(QIcon(str(Path(__file__).with_name("word-shuffle.svg"))))
     app.setStyle("Fusion")
-    app.setStyleSheet(STYLESHEET)
+    app_font = app.font()
+    app_font.setPixelSize(13)
+    app.setFont(app_font)
     window = WordShuffleWindow(sys.argv[1] if len(sys.argv) > 1 else None)
     window.show()
     return app.exec()
