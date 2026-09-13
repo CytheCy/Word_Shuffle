@@ -18,10 +18,9 @@ from PySide6.QtCore import (
     QSize,
     Qt,
     QTimer,
-    QUrl,
     Signal,
 )
-from PySide6.QtGui import QDesktopServices, QIcon, QKeySequence, QShortcut
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -284,22 +283,10 @@ class WordShuffleWindow(QMainWindow):
         self.file_selector.activated.connect(self._open_selected_file)
         toolbar_layout.addWidget(self.file_selector)
 
-        self.open_button = QPushButton("Open file")
-        self.open_button.setObjectName("primaryButton")
-        self.open_button.clicked.connect(self.choose_file)
-        toolbar_layout.addWidget(self.open_button)
-
         self.shuffle_button = QPushButton("Shuffle")
         self.shuffle_button.clicked.connect(self.shuffle_words)
         self.shuffle_button.setEnabled(False)
         toolbar_layout.addWidget(self.shuffle_button)
-
-        self.folder_button = QToolButton()
-        self.folder_button.setText("Folder")
-        self.folder_button.setToolTip("Show the current file in its folder")
-        self.folder_button.clicked.connect(self.show_in_folder)
-        self.folder_button.setEnabled(False)
-        toolbar_layout.addWidget(self.folder_button)
 
         self.settings_button = QToolButton()
         self.settings_button.setText("Settings")
@@ -382,7 +369,6 @@ class WordShuffleWindow(QMainWindow):
         self.settings.setValue("lastFile", str(candidate))
         self.setWindowTitle(f"{candidate.name} — {APP_NAME}")
         self.shuffle_button.setEnabled(bool(self.words))
-        self.folder_button.setEnabled(True)
         matching_index = self.file_selector.findData(str(candidate))
         if matching_index >= 0:
             blocker = QSignalBlocker(self.file_selector)
@@ -456,10 +442,6 @@ class WordShuffleWindow(QMainWindow):
         preview = selected.text if len(selected.text) <= 34 else selected.text[:31] + "…"
         self._set_status(f'COPIED “{preview}”')
 
-    def show_in_folder(self) -> None:
-        if self.file_path:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.file_path.parent)))
-
     def _show_empty_state(self) -> None:
         self.empty_widget.setVisible(True)
 
@@ -514,8 +496,6 @@ QPushButton, QToolButton {{
 QPushButton:hover, QToolButton:hover {{ background: #323842; border-color: #505965; }}
 QPushButton:pressed, QToolButton:pressed {{ background: #252a31; }}
 QPushButton:disabled, QToolButton:disabled {{ color: #656b74; background: #23272d; border-color: #30353d; }}
-QPushButton#primaryButton {{ background: {ACCENT}; color: #10141a; border-color: {ACCENT}; font-weight: 700; }}
-QPushButton#primaryButton:hover {{ background: #7ba8f8; border-color: #7ba8f8; }}
 QComboBox#fileSelector {{
     min-height: 32px;
     padding: 0 10px;
