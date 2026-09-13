@@ -202,9 +202,6 @@ class WordShuffleWindow(QMainWindow):
         content_layout.setSpacing(10)
 
         meta = QHBoxLayout()
-        words_label = QLabel("SHUFFLED BLOCKS")
-        words_label.setObjectName("sectionLabel")
-        meta.addWidget(words_label)
         meta.addStretch()
         self.count_label = QLabel("0 REMAINING")
         self.count_label.setObjectName("sectionLabel")
