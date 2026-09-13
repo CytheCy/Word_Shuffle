@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QProcess, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -144,6 +144,50 @@ class WordShuffleTests(unittest.TestCase):
                 window.remove_and_copy(selected)
             warning.assert_called_once()
             self.assertEqual(source.read_text(encoding="utf-8"), "changed\nbeta\n")
+            window.close()
+
+    def test_edit_button_opens_current_file_in_default_text_editor(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "words.shfl"
+            source.write_text("alpha\nbeta\n", encoding="utf-8")
+            window = WordShuffleWindow(auto_load=False)
+            self.assertFalse(window.edit_button.isEnabled())
+            window.load_file(str(source))
+
+            with (
+                patch.object(window, "_default_text_editor_id", return_value="editor.desktop"),
+                patch.object(QProcess, "startDetached", return_value=(True, 123)) as launch,
+            ):
+                window.edit_button.click()
+
+            launch.assert_called_once_with(
+                "gtk-launch", ["editor.desktop", str(source.resolve())]
+            )
+            self.assertTrue(window.edit_button.isEnabled())
+            window.close()
+
+    def test_saved_external_changes_reload_the_open_list(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "words.shfl"
+            source.write_text("alpha\nbeta\n", encoding="utf-8")
+            window = WordShuffleWindow(auto_load=False)
+            window.load_file(str(source))
+
+            source.write_text("gamma\ndelta\nepsilon\n", encoding="utf-8")
+            window._reload_external_change()
+
+            self.assertEqual(
+                [word.text for word in window.words],
+                ["gamma", "delta", "epsilon"],
+            )
+            self.assertEqual(window.count_label.text(), "3 REMAINING")
+            self.assertIn(str(source.resolve()), window.file_watcher.files())
             window.close()
 
     def test_footer_selector_lists_and_opens_shfl_files(self):

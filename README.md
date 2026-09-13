@@ -12,4 +12,6 @@ With no argument, Word Shuffle reopens the last file used inside the configured 
 
 Use **Settings** in the footer to choose the folder that contains your `.shfl` files, change the block font size and spacing, or switch between dark and light mode. These choices are saved for the next launch. The footer selector refreshes when opened and includes `.shfl` files from that folder and its subfolders. You can also use **Ctrl+O** to open another file, **Ctrl+R** to reshuffle, or drag a file into the workspace.
 
+Use **Edit List** to open the current `.shfl` in your desktop's default plain-text editor. Word Shuffle watches the open file and refreshes its blocks automatically when you save changes.
+
 `word-shuffle.desktop` is included for adding the app to a KDE launcher or desktop.

@@ -10,8 +10,10 @@ from pathlib import Path
 
 from PySide6.QtCore import (
     QAbstractListModel,
+    QFileSystemWatcher,
     QIODeviceBase,
     QModelIndex,
+    QProcess,
     QSaveFile,
     QSettings,
     QSignalBlocker,
@@ -251,6 +253,14 @@ class WordShuffleWindow(QMainWindow):
         self.theme = saved_theme if saved_theme in {"dark", "light"} else DEFAULT_THEME
         self.words: list[WordLine] = []
         self.display_order: list[WordLine] = []
+        self._loaded_bytes: bytes | None = None
+        self.file_watcher = QFileSystemWatcher(self)
+        self.file_watcher.fileChanged.connect(self._schedule_external_reload)
+        self.file_watcher.directoryChanged.connect(self._schedule_external_reload)
+        self._reload_timer = QTimer(self)
+        self._reload_timer.setSingleShot(True)
+        self._reload_timer.setInterval(200)
+        self._reload_timer.timeout.connect(self._reload_external_change)
         self._build_ui()
         self._apply_theme()
         self._refresh_file_selector()
@@ -370,6 +380,12 @@ class WordShuffleWindow(QMainWindow):
         self.file_selector.about_to_show.connect(self._refresh_file_selector)
         self.file_selector.activated.connect(self._open_selected_file)
         toolbar_layout.addWidget(self.file_selector)
+
+        self.edit_button = QPushButton("Edit List")
+        self.edit_button.setToolTip("Open this list in your default text editor")
+        self.edit_button.clicked.connect(self.edit_list)
+        self.edit_button.setEnabled(False)
+        toolbar_layout.addWidget(self.edit_button)
 
         self.shuffle_button = QPushButton("Shuffle")
         self.shuffle_button.clicked.connect(self.shuffle_words)
@@ -519,21 +535,84 @@ class WordShuffleWindow(QMainWindow):
         if path:
             self.load_file(path)
 
+    def edit_list(self) -> None:
+        """Open the current list with the desktop's default plain-text editor."""
+        if not self.file_path:
+            return
+
+        editor_id = self._default_text_editor_id()
+        if not editor_id:
+            QMessageBox.warning(
+                self,
+                "Could not open editor",
+                "No default plain-text editor is configured.",
+            )
+            return
+
+        result = QProcess.startDetached("gtk-launch", [editor_id, str(self.file_path)])
+        started = result[0] if isinstance(result, tuple) else result
+        if not started:
+            QMessageBox.warning(
+                self,
+                "Could not open editor",
+                f"The default text editor ({editor_id}) could not be started.",
+            )
+
+    @staticmethod
+    def _default_text_editor_id() -> str:
+        process = QProcess()
+        process.start("xdg-mime", ["query", "default", "text/plain"])
+        if not process.waitForFinished(3000) or process.exitCode() != 0:
+            return ""
+        return bytes(process.readAllStandardOutput()).decode(errors="replace").strip()
+
+    def _watch_file(self, path: Path) -> None:
+        watched = self.file_watcher.files() + self.file_watcher.directories()
+        if watched:
+            self.file_watcher.removePaths(watched)
+        self.file_watcher.addPath(str(path.parent))
+        if path.is_file():
+            self.file_watcher.addPath(str(path))
+
+    def _schedule_external_reload(self, _path: str = "") -> None:
+        self._reload_timer.start()
+
+    def _reload_external_change(self) -> None:
+        """Reload when the current file's content changed outside the app."""
+        path = self.file_path
+        if not path or not path.is_file():
+            return
+        try:
+            raw = path.read_bytes()
+        except OSError:
+            return
+
+        # Atomic editor saves replace the inode and remove a file watch. The
+        # parent-directory watch lets us restore it after the replacement.
+        if str(path) not in self.file_watcher.files():
+            self.file_watcher.addPath(str(path))
+        if raw != self._loaded_bytes:
+            self.load_file(str(path))
+
     def load_file(self, path: str) -> None:
         candidate = Path(path).expanduser().resolve()
         try:
-            lines = candidate.read_bytes().decode("utf-8-sig").splitlines()
+            raw = candidate.read_bytes()
+            lines = raw.decode("utf-8-sig").splitlines()
         except (OSError, UnicodeError) as error:
             QMessageBox.warning(self, "Could not open file", str(error))
             return
 
         self.file_path = candidate
+        self._loaded_bytes = raw
+        self._watch_file(candidate)
         self.words = [WordLine(i, line) for i, line in enumerate(lines) if line.strip()]
         self.display_order = self.words.copy()
         random.shuffle(self.display_order)
         if self._is_in_shuffle_folder(candidate):
             self.settings.setValue("lastFile", str(candidate))
         self.setWindowTitle(f"{candidate.name} — {APP_NAME}")
+        self.edit_button.setEnabled(True)
         self.shuffle_button.setEnabled(bool(self.words))
         matching_index = self.file_selector.findData(str(candidate))
         if matching_index >= 0:
@@ -588,6 +667,9 @@ class WordShuffleWindow(QMainWindow):
             return
 
         QApplication.clipboard().setText(selected.text)
+        self._loaded_bytes = encoded
+        if str(self.file_path) not in self.file_watcher.files():
+            self.file_watcher.addPath(str(self.file_path))
         self.words = [
             WordLine(word.line_number - (word.line_number > selected.line_number), word.text)
             for word in self.words
