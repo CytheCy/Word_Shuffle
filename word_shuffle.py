@@ -273,9 +273,6 @@ class WordShuffleWindow(QMainWindow):
         toolbar_layout.setContentsMargins(18, 12, 18, 12)
         toolbar_layout.setSpacing(9)
 
-        self.file_label = QLabel("NO FILE OPEN")
-        self.file_label.setObjectName("fileLabel")
-        toolbar_layout.addWidget(self.file_label)
         toolbar_layout.addStretch()
 
         self.file_selector = FileSelector()
@@ -383,8 +380,6 @@ class WordShuffleWindow(QMainWindow):
         self.display_order = self.words.copy()
         random.shuffle(self.display_order)
         self.settings.setValue("lastFile", str(candidate))
-        self.file_label.setText(candidate.name.upper())
-        self.file_label.setToolTip(str(candidate))
         self.setWindowTitle(f"{candidate.name} — {APP_NAME}")
         self.shuffle_button.setEnabled(bool(self.words))
         self.folder_button.setEnabled(True)
@@ -505,7 +500,7 @@ QLabel#sectionLabel {{
     font-weight: 700;
     letter-spacing: 1px;
 }}
-QLabel#fileLabel, QLabel#helper {{ color: #7f8793; font-size: 11px; }}
+QLabel#helper {{ color: #7f8793; font-size: 11px; }}
 QLabel#status {{ color: {ACCENT}; font-size: 10px; font-weight: 700; }}
 QLabel#emptyTitle {{ color: #c3c8d0; font-size: 15px; font-weight: 600; }}
 QPushButton, QToolButton {{
