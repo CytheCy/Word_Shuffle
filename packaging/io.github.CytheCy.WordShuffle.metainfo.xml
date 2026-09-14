@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.CytheCy.WordShuffle</id>
+  <name>Word Shuffle</name>
+  <summary>Shuffle word and phrase lists into clickable blocks</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>
+      Word Shuffle displays each non-empty line in a .shfl file as a shuffled
+      block. Control-clicking a block removes that exact line from the source
+      file and copies it to the clipboard.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.CytheCy.WordShuffle.desktop</launchable>
+  <provides>
+    <mediatype>application/x-word-shuffle</mediatype>
+  </provides>
+  <url type="homepage">https://github.com/CytheCy/Word_Shuffle</url>
+  <releases>
+    <release version="1.0.0" date="2026-09-13"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>

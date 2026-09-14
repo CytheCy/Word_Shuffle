@@ -2,8 +2,8 @@
 Type=Application
 Name=Word Shuffle
 Comment=Shuffle word and phrase lists into clickable blocks
-Exec=/home/cport/Git/Word_Shuffle/run-word-shuffle.sh %f
-Icon=/home/cport/Git/Word_Shuffle/word-shuffle-desktop.png
+Exec=word-shuffle %f
+Icon=io.github.CytheCy.WordShuffle
 Terminal=false
 Categories=Utility;
 MimeType=application/x-word-shuffle;

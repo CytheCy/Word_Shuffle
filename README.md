@@ -1,17 +1,50 @@
 # Word Shuffle
 
-A compact PySide6 desktop tool for `.shfl` files. Each non-empty source line is shown as a shuffled word or phrase block. **Ctrl-click** a block to remove that exact line from the source file and copy it to the desktop clipboard.
+A desktop app for opening and shuffling `.shfl` word lists.
+
+## Install
+
+Download the package for your Linux distribution, then run the matching command from the download directory.
+
+### Debian / Ubuntu
+
+```bash
+sudo apt install ./word-shuffle_1.0.0_all.deb
+```
+
+### Fedora / RHEL
+
+```bash
+sudo dnf install ./word-shuffle-1.0.0-1.noarch.rpm
+```
+
+### AppImage
+
+```bash
+chmod +x Word_Shuffle-1.0.0-x86_64.AppImage
+./Word_Shuffle-1.0.0-x86_64.AppImage
+```
 
 ## Run
 
+Open **Word Shuffle** from the application menu, or run:
+
 ```bash
-./run-word-shuffle.sh "/path/to/list.shfl"
+word-shuffle
 ```
 
-With no argument, Word Shuffle reopens the last file used inside the configured shuffle folder. Opening a `.shfl` elsewhere, including from a file manager, does not replace that remembered file or change the configured folder. On first launch it opens `/home/cport/MEGA/Notes/Word Shuffle/try.shfl` when that file exists.
+To open a specific list:
 
-Use **Settings** in the footer to choose the folder that contains your `.shfl` files, change the block font size and spacing, or switch between dark and light mode. These choices are saved for the next launch. The footer selector refreshes when opened and includes `.shfl` files from that folder and its subfolders. You can also use **Ctrl+O** to open another file, **Ctrl+R** to reshuffle, or drag a file into the workspace.
+```bash
+word-shuffle /path/to/list.shfl
+```
 
-Use **Edit List** to open the current `.shfl` in your desktop's default plain-text editor. Word Shuffle watches the open file and refreshes its blocks automatically when you save changes.
+To run directly from the source folder:
 
-`word-shuffle.desktop` is included for adding the app to a KDE launcher or desktop.
+```bash
+./run-word-shuffle.sh
+```
+
+## License
+
+Word Shuffle is available under the [MIT License](LICENSE).
